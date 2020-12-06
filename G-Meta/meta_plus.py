@@ -6,11 +6,7 @@ from    torch.utils.data import TensorDataset, DataLoader
 from    torch import optim
 import  numpy as np
 
-<<<<<<< HEAD
-from    learner import Classifier
-=======
-from    learner import Classifier#, Relation
->>>>>>> relation
+from    learner_plus import Classifier#, Relation
 from    copy import deepcopy
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -97,12 +93,9 @@ class Meta(nn.Module):
 
         self.net = Classifier(config)
         self.net = self.net.to(device)
-<<<<<<< HEAD
-=======
 
         # Relation function
 #         self.relation_f = Relation()
->>>>>>> relation
         
         self.meta_optim = optim.Adam(self.net.parameters(), lr=self.meta_lr)
 
@@ -129,8 +122,7 @@ class Meta(nn.Module):
             feat_spt = torch.Tensor(np.vstack(([feat[g_spt[i][j]][np.array(x)] for j, x in enumerate(n_spt[i])]))).to(device)
             feat_qry = torch.Tensor(np.vstack(([feat[g_qry[i][j]][np.array(x)] for j, x in enumerate(n_qry[i])]))).to(device)
             # 1. run the i-th task and compute loss for k=0
-            logits, _ = self.net(x_spt[i].to(device), c_spt[i].to(device), feat_spt, vars=None)
-            loss, _, prototypes = proto_loss_spt(logits, y_spt[i], self.k_spt)
+            loss, _, prototypes = self.net(x_spt[i].to(device), c_spt[i].to(device), feat_spt, y_spt[i], n_support=self.k_spt, vars=None)
             losses_s[0] += loss
             grad = torch.autograd.grad(loss, self.net.parameters())
             fast_weights = list(map(lambda p: p[1] - self.update_lr * p[0], zip(grad, self.net.parameters())))
@@ -138,30 +130,27 @@ class Meta(nn.Module):
             # this is the loss and accuracy before first update
             with torch.no_grad():
                 # [setsz, nway]
-                logits_q, _ = self.net(x_qry[i].to(device), c_qry[i].to(device), feat_qry, self.net.parameters())
-                loss_q, acc_q = proto_loss_qry(logits_q, y_qry[i], prototypes)
+                loss_q, acc_q, _ = self.net(x_qry[i].to(device), c_qry[i].to(device), feat_qry, y_qry[i], prototypes=prototypes, vars=self.net.parameters())
                 losses_q[0] += loss_q
                 corrects[0] = corrects[0] + acc_q
 
             # this is the loss and accuracy after the first update
             with torch.no_grad():
-                logits_q, _ = self.net(x_qry[i].to(device), c_qry[i].to(device), feat_qry, fast_weights)
-                loss_q, acc_q = proto_loss_qry(logits_q, y_qry[i], prototypes)
+                loss_q, acc_q, _ = self.net(x_qry[i].to(device), c_qry[i].to(device), feat_qry, y_qry[i], prototypes=prototypes, vars=fast_weights)
                 losses_q[1] += loss_q
                 corrects[1] = corrects[1] + acc_q
 
             for k in range(1, self.update_step):
                 # 1. run the i-th task and compute loss for k=1~K-1
-                logits, _ = self.net(x_spt[i].to(device), c_spt[i].to(device), feat_spt, fast_weights)
-                loss, _, prototypes = proto_loss_spt(logits, y_spt[i], self.k_spt)
+                loss, _, prototypes = self.net(x_spt[i].to(device), c_spt[i].to(device), feat_spt, y_spt[i], n_support=self.k_spt, vars=fast_weights)
                 losses_s[k] += loss
                 # 2. compute grad on theta_pi
                 grad = torch.autograd.grad(loss, fast_weights, retain_graph=True)
                 # 3. theta_pi = theta_pi - train_lr * grad
                 fast_weights = list(map(lambda p: p[1] - self.update_lr * p[0], zip(grad, fast_weights)))
-                logits_q, _ = self.net(x_qry[i].to(device), c_qry[i].to(device), feat_qry, fast_weights)
+                
                 # loss_q will be overwritten and just keep the loss_q on last update step.
-                loss_q, acc_q = proto_loss_qry(logits_q, y_qry[i], prototypes)
+                loss_q, acc_q, _ = self.net(x_qry[i].to(device), c_qry[i].to(device), feat_qry, y_qry[i], prototypes=prototypes, vars=fast_weights)
                 losses_q[k + 1] += loss_q
 
                 corrects[k + 1] = corrects[k + 1] + acc_q
@@ -189,10 +178,7 @@ class Meta(nn.Module):
 
         # finetunning on the copied model instead of self.net
         net = deepcopy(self.net)
-<<<<<<< HEAD
-=======
         # fun = deepcopy(self.relation_f)
->>>>>>> relation
         x_spt = x_spt[0]
         y_spt = y_spt[0]
         x_qry = x_qry[0]
@@ -217,29 +203,25 @@ class Meta(nn.Module):
         # this is the loss and accuracy before first update
         with torch.no_grad():
             # [setsz, nway]
-            logits_q, _ = net(x_qry.to(device), c_qry.to(device), feat_qry, net.parameters())
-            loss_q, acc_q = proto_loss_qry(logits_q, y_qry, prototypes)
+            loss_q, acc_q, _ = net(x_qry.to(device), c_qry.to(device), feat_qry, y_qry, prototypes=prototypes, vars=net.parameters())
             corrects[0] = corrects[0] + acc_q
         # this is the loss and accuracy after the first update
         with torch.no_grad():
             # [setsz, nway]
-            logits_q, _ = net(x_qry.to(device), c_qry.to(device), feat_qry, fast_weights)
-            loss_q, acc_q = proto_loss_qry(logits_q, y_qry, prototypes)
+            loss_q, acc_q, _ = net(x_qry.to(device), c_qry.to(device), feat_qry, y_qry, prototypes=prototypes, vars=fast_weights)
             corrects[1] = corrects[1] + acc_q
 
 
         for k in range(1, self.update_step_test):
             # 1. run the i-th task and compute loss for k=1~K-1
-            logits, _ = net(x_spt.to(device), c_spt.to(device), feat_spt, fast_weights)
-            loss, _, prototypes = proto_loss_spt(logits, y_spt, self.k_spt)
+            loss, _, prototypes = net(x_spt.to(device), c_spt.to(device), feat_spt, y_spt, n_support=self.k_spt, vars=fast_weights)
             # 2. compute grad on theta_pi
             grad = torch.autograd.grad(loss, fast_weights, retain_graph=True)
             # 3. theta_pi = theta_pi - train_lr * grad
             fast_weights = list(map(lambda p: p[1] - self.update_lr * p[0], zip(grad, fast_weights)))
 
-            logits_q, _ = net(x_qry.to(device), c_qry.to(device), feat_qry, fast_weights)
             # loss_q will be overwritten and just keep the loss_q on last update step.
-            loss_q, acc_q = proto_loss_qry(logits_q, y_qry, prototypes)
+            loss_q, acc_q, _ = net(x_qry.to(device), c_qry.to(device), feat_qry, y_qry, prototypes=prototypes, vars=fast_weights)
             corrects[k + 1] = corrects[k + 1] + acc_q
 
         del net
@@ -256,3 +238,99 @@ class Meta(nn.Module):
         if self.method == 'G-Meta':
             accs = self.finetunning_ProtoMAML(x_spt, y_spt, x_qry, y_qry, c_spt, c_qry, n_spt, n_qry, g_spt, g_qry, feat)
         return accs
+
+    
+    
+    
+    
+    ########################################################
+    # The follwing will probably not work.                 #
+    # We need to include the Relation component in 'net'   #
+    # so that it can be optimized with MAML                #
+    ########################################################
+    
+#     def relation_loss_spt(self, logits, y_t, n_support, fun=None):
+#         # finetuning step (copy of model is used instead of actual model)
+#         if fun is None:
+#             relation_f = self.relation_f
+#         else:
+#             relation_f = fun
+        
+#         target_cpu = y_t.to('cpu')
+#         input_cpu = logits.to('cpu')
+    
+#         def supp_idxs(c):
+#             return target_cpu.eq(c).nonzero()[:n_support].squeeze(1)
+
+#         classes = torch.unique(target_cpu)
+#         n_classes = len(classes)
+#         n_query = n_support
+
+#         support_idxs = list(map(supp_idxs, classes))
+
+#         ### Comments
+#         # input_cpu[idx_list] seems to contain the support vectors for a specific class
+#         # What is their dimensionality?
+#         # Need to test this all out because I have no idea about the dimensions of anything
+        
+# #         prototypes = torch.stack([input_cpu[idx_list].mean(0) for idx_list in support_idxs])
+#         query_idxs = torch.stack(list(map(lambda c: target_cpu.eq(c).nonzero()[:n_support], classes))).view(-1)
+#         query_samples = input_cpu[query_idxs]   
+# #         dists = euclidean_dist(query_samples, prototypes)
+# #         log_p_y = F.log_softmax(-dists, dim=1).view(n_classes, n_query, -1)
+
+#         ##### Relation piece #####
+    
+#         prototypes = torch.stack([input_cpu[idx_list].sum(0) for idx_list in support_idxs])
+        
+#         # very unsure about the dimensions and the .view
+#         log_p_y = self.relation_f(prototypes, query_samples).view(n_classes, n_query, -1)
+        
+#         ##### Relation piece #####
+
+#         target_inds = torch.arange(0, n_classes)
+#         target_inds = target_inds.view(n_classes, 1, 1)
+#         target_inds = target_inds.expand(n_classes, n_query, 1).long()
+
+#         loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+#         _, y_hat = log_p_y.max(2)
+#         acc_val = y_hat.eq(target_inds.squeeze()).float().mean()
+#         return loss_val, acc_val, prototypes
+    
+#     def relation_loss_qry(self, logits, y_t, prototypes, fun=None):
+#         # finetuning step (copy of model is used instead of actual model)
+#         if fun is None:
+#             relation_f = self.relation_f
+#         else:
+#             relation_f = fun
+        
+#         target_cpu = y_t.to('cpu')
+#         input_cpu = logits.to('cpu')
+
+#         classes = torch.unique(target_cpu)
+#         n_classes = len(classes)
+
+#         n_query = int(logits.shape[0]/n_classes)
+
+#         query_idxs = torch.stack(list(map(lambda c: target_cpu.eq(c).nonzero(), classes))).view(-1)
+#         query_samples = input_cpu[query_idxs]
+
+# #         dists = euclidean_dist(query_samples, prototypes)
+
+# #         log_p_y = F.log_softmax(-dists, dim=1).view(n_classes, n_query, -1)
+
+#         ##### Relation piece #####
+        
+#         # very unsure about the dimensions and the .view
+#         log_p_y = self.relation_f(prototypes, query_samples).view(n_classes, n_query, -1)
+        
+#         ##### Relation piece #####
+
+#         target_inds = torch.arange(0, n_classes)
+#         target_inds = target_inds.view(n_classes, 1, 1)
+#         target_inds = target_inds.expand(n_classes, n_query, 1).long()
+
+#         loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+#         _, y_hat = log_p_y.max(2)
+#         acc_val = y_hat.eq(target_inds.squeeze()).float().mean()
+#         return loss_val, acc_val
