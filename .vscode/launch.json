@@ -1,0 +1,31 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "G-Meta/train.py",
+            "args": ["--data_dir", "/Users/merden/Code/COMP137/G-Meta_Data/tree-of-life/",
+                "--epoch", "15",
+                "--task_setup", "Shared",
+                "--k_qry", "16",
+                "--k_spt", "16",
+                "--n_way", "2",
+                "--update_lr", "0.005",
+                "--update_step", "10",
+                "--meta_lr", "0.0005",
+                "--num_workers", "0",
+                "--train_result_report_steps", "200",
+                "--hidden_dim", "256",
+                "--update_step_test", "20",
+                "--task_num", "8",
+                "--batchsz", "5000",
+                "--link_pred_mod", "True"],
+            "console": "integratedTerminal"
+        }
+    ]
+}
