@@ -332,9 +332,9 @@ class Subgraphs(Dataset):
             if not is_query:
                 shortest_paths = []
                 for pairs in sublist:
-                    src, target = (pairs.split("_")[1], pairs.split("_")[2])
+                    target = pairs.split("_")[1]
                     path = nx.shortest_path(
-                        nx_graph, source=int(src), target=int(target))
+                        nx_graph, source=i, target=int(target))
                     shortest_paths += path
                 shortest_paths = torch.tensor(
                     list(set(shortest_paths))).numpy()
