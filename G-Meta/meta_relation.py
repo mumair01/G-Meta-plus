@@ -141,6 +141,7 @@ class Meta(nn.Module):
                 corrects[1] = corrects[1] + acc_q
 
             for k in range(1, self.update_step):
+
                 # 1. run the i-th task and compute loss for k=1~K-1
                 loss, _, prototypes = self.net(x_spt[i].to(device), c_spt[i].to(device), feat_spt, y_spt[i], n_support=self.k_spt, vars=fast_weights)
                 losses_s[k] += loss
@@ -195,8 +196,7 @@ class Meta(nn.Module):
             
 
         # 1. run the i-th task and compute loss for k=0
-        logits, _ = net(x_spt.to(device), c_spt.to(device), feat_spt)
-        loss, _, prototypes = proto_loss_spt(logits, y_spt, self.k_spt)
+        loss, _, prototypes = net(x_spt.to(device), c_spt.to(device), feat_spt, y_spt, n_support=self.k_spt)
         grad = torch.autograd.grad(loss, net.parameters())
         fast_weights = list(map(lambda p: p[1] - self.update_lr * p[0], zip(grad, net.parameters())))
 

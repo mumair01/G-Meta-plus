@@ -208,11 +208,10 @@ class Classifier(nn.Module):
 
         ## Relation component
         logits = h
-        # what is the shape of logits???
         # print(logits.shape) # = (n_examples, n_features)
 
-        target_cpu = y_t#.to('cpu')
-        input_cpu = logits#.to('cpu')
+        target_cpu = y_t
+        input_cpu = logits
         if prototypes is None: # prediction on support
             def supp_idxs(c):
                 return target_cpu.eq(c).nonzero()[:n_support].squeeze(1)
@@ -223,9 +222,8 @@ class Classifier(nn.Module):
 
             support_idxs = list(map(supp_idxs, classes))
 
-            prototypes = torch.stack([input_cpu[idx_list].sum(0) for idx_list in support_idxs])
+            prototypes = torch.stack([input_cpu[idx_list].mean(0) for idx_list in support_idxs])
             # prototypes is one vector per class!!!
-            # what is their shape?
 
             query_idxs = torch.stack(list(map(lambda c: target_cpu.eq(c).nonzero()[:n_support], classes))).view(-1)
             query_samples = input_cpu[query_idxs]
@@ -239,77 +237,41 @@ class Classifier(nn.Module):
             query_idxs = torch.stack(list(map(lambda c: target_cpu.eq(c).nonzero(), classes))).view(-1)
             query_samples = input_cpu[query_idxs]
 
-        # print(prototypes.shape) # = (n_classes, n_features)
-        # print(query_samples.shape) # = (n_query_examples(?), n_features)
-
 
         ## Compute log_p_y with relation network component
         # very unsure about the dimensions and the .view
         # unsure about dim in torch.cat
         w_1, b_1, w_2, b_2 = vars[-4], vars[-3], vars[-2], vars[-1]
-        relation_scores = []
+        to_predict = []
         truth = []
         for n_c in range(n_query * n_classes):
             query = query_samples[n_c]
 
-            # print(prototypes[0].shape)
-            # print(prototypes[1].shape)
-            # print(query.shape)
-
             # dim = (num_classes, num_features*2)
-            concatenated = torch.stack([torch.cat((prototypes[i], query), dim=0) for i in range(n_classes)], dim=0)
+            concatenated = torch.stack([torch.cat((prototypes[i], query), dim=0) for i in range(n_classes)], dim=0) # this works as expected
+            to_predict.append(concatenated)
 
-            # this ony works for classification!!!
             # uses invariant in the order of the data
             true = torch.zeros(n_classes)
             true[n_c // n_query] = 1.0
             truth.append(true)
 
-            # math here that computes relation scores for query
-            # dim = (num_classes, 1)
-            scores_for_query = torch.sigmoid(F.linear(F.linear(concatenated, w_1, b_1), w_2, b_2))
-            relation_scores.append(scores_for_query)
+        to_predict = torch.stack(to_predict).view(n_query*(n_classes**2), -1)
+        relation_scores = torch.sigmoid(F.linear(F.relu(F.linear(to_predict, w_1, b_1)), w_2, b_2)).view(n_classes, n_query, -1)
 
-        # now make dim of relation_scores = (n_classes, n_query)
-        # relation_scores = torch.stack(relation_scores, dim=0).squeeze() # .view(n_classes, n_query, -1)
-        # print(target_cpu)
-        log_p_y = torch.stack(relation_scores, dim=0).view(n_classes, n_query, -1)
-        # print(log_p_y)
+        log_p_y = relation_scores
         truth = torch.stack(truth).view(n_classes, n_query, -1)
-        # print(truth)
-        # print(log_p_y.shape)
 
         # what does this code do? Why does it create target_indices?
         target_inds = torch.arange(0, n_classes)
         target_inds = target_inds.view(n_classes, 1, 1)
         target_inds = target_inds.expand(n_classes, n_query, 1).long()
 
-        # print(target_inds.shape)
-
-        # what is dim of target_inds??
-        # print(target_cpu.shape)
-        # print(target_cpu)
-        # print(log_p_y)
-        # print(target_inds)
-        # print(log_p_y.gather(2, target_inds))
-        # print("------------------")
-        # print(log_p_y.gather(2, target_inds).shape)
-        # print(log_p_y.gather(2, target_inds).squeeze().shape)
-        # print(log_p_y.gather(2, target_inds).squeeze().view(-1).shape)
-
-        # loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
-        # print((log_p_y - truth))
-        # print((log_p_y - truth).squeeze())
-        # print((log_p_y - truth).squeeze().view(-1))
-        print((log_p_y - truth).squeeze().view(-1).pow(2))
-        # print((log_p_y - truth).squeeze().view(-1).pow(2).sum())
+        log_p_y = log_p_y.to('cpu')
+        truth = truth.to('cpu')
         loss_val = (log_p_y - truth).squeeze().view(-1).pow(2).sum()
         _, y_hat = log_p_y.max(2)
-        print(log_p_y)
-        # print(y_hat)
-        print(w_2)
         acc_val = y_hat.eq(target_inds.squeeze()).float().mean()
-        # exit(1)
        
         return loss_val, acc_val, prototypes
             
