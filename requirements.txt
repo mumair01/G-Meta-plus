@@ -1,4 +1,5 @@
 dgl-cu101
+pylru
 numpy
 networkx
 scipy

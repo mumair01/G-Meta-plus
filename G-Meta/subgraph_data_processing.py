@@ -8,8 +8,11 @@ import random
 import pickle
 from torch.utils.data import DataLoader
 import dgl
+import pylru
 import networkx as nx
 import itertools
+
+CACHE_SIZE = 5000
 
 
 class Subgraphs(Dataset):
@@ -46,7 +49,7 @@ class Subgraphs(Dataset):
                 os.path.join(root, mode + '.csv'))  # csv path
 
         self.task_setup = args.task_setup
-        self.subgraphs = {}
+        self.subgraphs = pylru.lrucache(CACHE_SIZE)
         self.G = []
 
         for i in adjs:
