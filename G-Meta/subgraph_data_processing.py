@@ -328,13 +328,16 @@ class Subgraphs(Dataset):
             return self.subgraphs[item]
         else:
             # instead of calculating shortest distance, we find the following ways to get subgraphs are quicker
-            nx_graph = G.to_networkx()
             if not is_query:
+                nx_graph = G.to_networkx()
                 shortest_paths = []
                 for pairs in sublist:
                     target = pairs.split("_")[1]
-                    path = nx.shortest_path(
-                        nx_graph, source=i, target=int(target))
+                    try:
+                        path = nx.shortest_path(
+                            nx_graph, source=i, target=int(target))
+                    except:
+                        path = []
                     shortest_paths += path
                 shortest_paths = torch.tensor(
                     list(set(shortest_paths))).numpy()
@@ -371,13 +374,16 @@ class Subgraphs(Dataset):
         if item in self.subgraphs:
             return self.subgraphs[item]
         else:
-            nx_graph = G.to_networkx()
             if not is_query:
+                nx_graph = G.to_networkx()
                 shortest_paths = []
                 for pairs in sublist:
                     src, target = (pairs.split("_")[1], pairs.split("_")[2])
-                    path = nx.shortest_path(
-                        nx_graph, source=int(src), target=int(target))
+                    try:
+                        path = nx.shortest_path(
+                            nx_graph, source=int(src), target=int(target))
+                    except:
+                        path = []
                     shortest_paths += path
                 shortest_paths = torch.tensor(
                     list(set(shortest_paths))).numpy()
