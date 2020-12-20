@@ -1,2 +1,14 @@
+<<<<<<< HEAD
 .DS_Store 
+=======
+<<<<<<< HEAD
+# System 
+.DS_Store 
+
+# Others 
+=======
+.DS_Store 
+
+>>>>>>> subgraphs
+>>>>>>> relation
 data/**
