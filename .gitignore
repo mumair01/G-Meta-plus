@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 # System 
 .DS_Store 
 
 # Others 
+=======
+.DS_Store 
+
+>>>>>>> subgraphs
 data/**
